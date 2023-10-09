@@ -6,6 +6,11 @@ import (
 	"fmt"
 )
 
+// Blockchain represents a collection of blocks
+type Blockchain struct {
+	Blocks []*Block
+}
+
 // Define a Block structure
 type Block struct {
 	Transaction  string
@@ -14,67 +19,22 @@ type Block struct {
 	Hash         string
 }
 
-// VerifyChain checks the integrity of the blockchain
-func (bc *Blockchain) VerifyChain() bool {
-	for i := 1; i < len(bc.Blocks); i++ {
-		currentBlock := bc.Blocks[i]
-		previousBlock := bc.Blocks[i-1]
-
-		// Recalculate the hash of the current block
-		currentBlock.CreateHash()
-
-		// Compare the recalculated hash with the stored hash
-		if currentBlock.Hash != previousBlock.Hash {
-			return false // Blockchain integrity compromised
-		}
-	}
-	return true // Blockchain is intact
-}
-
-// CreateHash calculates the hash of a block
-func (b *Block) CreateHash() {
-	data := fmt.Sprintf("%s%d%s", b.Transaction, b.Nonce, b.PreviousHash)
-	hashBytes := sha256.Sum256([]byte(data))
-	b.Hash = hex.EncodeToString(hashBytes[:])
-}
-
-// NewBlock creates a new block with the provided transaction, nonce, and previous block
-func NewBlock(transaction string, nonce int, previousBlock *Block) *Block {
-	var previousHash string
-	if previousBlock != nil {
-		previousHash = previousBlock.Hash
-	} else {
-		// The first block (genesis block) has no previous hash
-		previousHash = ""
-	}
-
+// NewBlock creates a new block with the provided transaction, nonce, and previous hash.
+func NewBlock(transaction string, nonce int, previousHash string) *Block {
 	block := &Block{
 		Transaction:  transaction,
 		Nonce:        nonce,
 		PreviousHash: previousHash,
 	}
-	block.CreateHash()
+	block.Hash = block.CreateHash()
 	return block
 }
 
-// Blockchain represents a collection of blocks
-type Blockchain struct {
-	Blocks []*Block
-}
-
-// AddBlock adds a new block to the blockchain
-func (bc *Blockchain) AddBlock(transaction string, nonce int) {
-	// Get the previous block (if any)
-	var previousBlock *Block
-	if len(bc.Blocks) > 0 {
-		previousBlock = bc.Blocks[len(bc.Blocks)-1]
-	}
-
-	// Create a new block with the previous block's hash
-	newBlock := NewBlock(transaction, nonce, previousBlock)
-
-	// Append the new block to the blockchain
-	bc.Blocks = append(bc.Blocks, newBlock)
+// CreateHash calculates the hash of a block and returns it
+func (b *Block) CreateHash() string {
+	data := fmt.Sprintf("%s%d%s", b.Transaction, b.Nonce, b.PreviousHash)
+	hashBytes := sha256.Sum256([]byte(data)) //sha256 fun to calculate hash
+	return hex.EncodeToString(hashBytes[:])
 }
 
 // DisplayBlocks prints all blocks in the blockchain
@@ -97,33 +57,48 @@ func (b *Block) ChangeTransaction(newTransaction string) {
 
 // Define a ChangeBlock function to change the transaction of a block
 func ChangeBlock(blockToChange *Block, newTransaction string) {
-	// Call the Block's ChangeTransaction method to update the transaction
 	blockToChange.ChangeTransaction(newTransaction)
+}
+
+// VerifyChain checks the integrity of the blockchain
+func (bc *Blockchain) VerifyChain() bool {
+
+	for i := 1; i < len(bc.Blocks); i++ {
+		currentBlock := bc.Blocks[i]
+		previousBlock := bc.Blocks[i-1]
+
+		// Verify the current block's hash
+		if currentBlock.Hash != currentBlock.CreateHash() {
+			return false
+		}
+
+		// Verify that the previous hash in the current block matches the hash of the previous block
+		if currentBlock.PreviousHash != previousBlock.Hash {
+			return false
+		}
+	}
+	return true
 }
 
 func main() {
 	// Create a blockchain with the genesis block
 	blockchain := &Blockchain{}
 
-	// Add the genesis block (first block) to the blockchain
-	genesisBlock := NewBlock("First block Transaction", 0, nil)
+	// Add blocks to the blockchain
+	genesisBlock := NewBlock("First block Transaction", 0, "")
+	block1 := NewBlock("bob to alice", 12345, genesisBlock.Hash)
+	block2 := NewBlock("Alina to Hadia", 45678, block1.Hash)
 	blockchain.Blocks = append(blockchain.Blocks, genesisBlock)
-
-	// Add more blocks to the blockchain
-	blockchain.AddBlock("bob to alice", 12345)
-	blockchain.AddBlock("alice to bob", 67890)
-
-	// Display all blocks in the blockchain
+	blockchain.Blocks = append(blockchain.Blocks, block1)
+	blockchain.Blocks = append(blockchain.Blocks, block2)
+	// display the blockchain in a nice formate
+	blockchain.DisplayBlocks()
+	//changing the block transaction
+	ChangeBlock(block1, "Maryum to Maria")
+	fmt.Println("Modified Block chain")
 	blockchain.DisplayBlocks()
 
-	// if len(blockchain.Blocks) > 1 {
-	// 	blockToChange := blockchain.Blocks[1] // Get a reference to the second block
-	// 	ChangeBlock(blockToChange, "Updated Transaction")
-	// }
-	// fmt.Println("After Modification:")
-	// blockchain.DisplayBlocks()
-
-	// Verify the integrity of the blockchain
+	//Verify the integrity of the blockchain
 	if blockchain.VerifyChain() {
 		fmt.Println("Blockchain is intact.")
 	} else {
